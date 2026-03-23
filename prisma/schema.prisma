@@ -1,0 +1,598 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  REQUESTER
+  PROVIDER
+  SQUAD_LEADER
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  SUSPENDED
+}
+
+enum JobMode {
+  INSTANT
+  QUOTE_BASED
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum SquadMemberRole {
+  LEADER
+  MEMBER
+}
+
+enum SquadMemberStatus {
+  INVITED
+  ACTIVE
+  DECLINED
+  REMOVED
+}
+
+enum NotificationType {
+  JOB_POSTED
+  APPLICATION_RECEIVED
+  QUOTE_SUBMITTED
+  JOB_ASSIGNED
+  REVIEW_RECEIVED
+  SQUAD_INVITE
+  VERIFICATION_UPDATE
+  ADMIN_ACTION
+  JOB_COMPLETED
+  MESSAGE_RECEIVED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PricingModel {
+  HOURLY
+  DAILY
+  PROJECT_BASED
+  NEGOTIABLE
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerified   DateTime?
+  name            String?
+  image           String?
+  phone           String?
+  phoneVerified   Boolean   @default(false)
+  role            UserRole  @default(REQUESTER)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastActiveAt    DateTime?
+  isActive        Boolean   @default(true)
+  isFlagged       Boolean   @default(false)
+  moderationNotes String?
+
+  accounts         Account[]
+  sessions         Session[]
+  providerProfile  ProviderProfile?
+  requesterProfile RequesterProfile?
+  postedJobs       Job[]              @relation("JobRequester")
+  reviews          Review[]           @relation("ReviewAuthor")
+  reviewsReceived  Review[]           @relation("ReviewSubject")
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  disputes         Dispute[]          @relation("DisputeRequester")
+  disputesAgainst  Dispute[]          @relation("DisputeRespondent")
+  badges           UserBadge[]
+  squadMemberships SquadMember[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model ProviderProfile {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  slug                 String             @unique
+  bio                  String?            @db.Text
+  tagline              String?
+  mainTrade            String?
+  pricingModel         PricingModel       @default(NEGOTIABLE)
+  hourlyRate           Decimal?           @db.Decimal(10, 2)
+  dailyRate            Decimal?           @db.Decimal(10, 2)
+  availableNow         Boolean            @default(false)
+  emergencyAvailable   Boolean            @default(false)
+  yearsExperience      Int?
+  serviceAreas         String[]
+  languages            String[]           @default(["English"])
+  idVerificationStatus VerificationStatus @default(UNVERIFIED)
+  moderationStatus     ModerationStatus   @default(PENDING)
+  profileStrength      Int                @default(0)
+  averageRating        Decimal            @db.Decimal(3, 2) @default(0)
+  reviewCount          Int                @default(0)
+  responseRate         Decimal?           @db.Decimal(5, 2)
+  completionRate       Decimal?           @db.Decimal(5, 2)
+  isFeatured           Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills              ProviderSkill[]
+  portfolio           PortfolioProject[]
+  jobApplications     JobApplication[]
+  reviews             Review[]             @relation("ProviderReview")
+  verificationRecords VerificationRecord[]
+  squadMemberships    SquadMember[]        @relation("ProviderSquadMemberships")
+
+  @@map("provider_profiles")
+}
+
+model RequesterProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  bio              String?  @db.Text
+  preferredAreas   String[]
+  reliabilityScore Decimal  @db.Decimal(3, 2) @default(5.0)
+  jobsPosted       Int      @default(0)
+  jobsCompleted    Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("requester_profiles")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  skills Skill[]
+  jobs   Job[]
+  squads Squad[] @relation("SquadCategories")
+
+  @@map("categories")
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  categoryId  String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category       Category        @relation(fields: [categoryId], references: [id])
+  providerSkills ProviderSkill[]
+
+  @@map("skills")
+}
+
+model ProviderSkill {
+  id                String   @id @default(cuid())
+  providerProfileId String
+  skillId           String
+  proficiencyRank   Int      @default(3)
+  yearsExperience   Int?
+  isHighlighted     Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  providerProfile ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  skill           Skill           @relation(fields: [skillId], references: [id])
+
+  @@unique([providerProfileId, skillId])
+  @@map("provider_skills")
+}
+
+model PortfolioProject {
+  id                String    @id @default(cuid())
+  providerProfileId String
+  title             String
+  description       String?   @db.Text
+  area              String?
+  budgetRange       String?
+  dateCompleted     DateTime?
+  rolePerformed     String?
+  coverImageUrl     String?
+  isPublished       Boolean   @default(true)
+  sortOrder         Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  providerProfile ProviderProfile  @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  media           PortfolioMedia[]
+
+  @@map("portfolio_projects")
+}
+
+model PortfolioMedia {
+  id                 String   @id @default(cuid())
+  portfolioProjectId String
+  url                String
+  caption            String?
+  mediaType          String   @default("image")
+  isCover            Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  portfolioProject PortfolioProject @relation(fields: [portfolioProjectId], references: [id], onDelete: Cascade)
+
+  @@map("portfolio_media")
+}
+
+model Squad {
+  id                String           @id @default(cuid())
+  name              String
+  slug              String           @unique
+  description       String?          @db.Text
+  tagline           String?
+  logoUrl           String?
+  coverImageUrl     String?
+  serviceAreas      String[]
+  maxCapacity       Int              @default(10)
+  isFeatured        Boolean          @default(false)
+  moderationStatus  ModerationStatus @default(PENDING)
+  averageRating     Decimal          @db.Decimal(3, 2) @default(0)
+  reviewCount       Int              @default(0)
+  projectsCompleted Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  members         SquadMember[]
+  categories      Category[]              @relation("SquadCategories")
+  portfolio       SquadPortfolioProject[]
+  jobApplications JobApplication[]        @relation("SquadApplications")
+  reviews         Review[]                @relation("SquadReview")
+
+  @@map("squads")
+}
+
+model SquadMember {
+  id                String            @id @default(cuid())
+  squadId           String
+  userId            String
+  providerProfileId String?
+  role              SquadMemberRole   @default(MEMBER)
+  status            SquadMemberStatus @default(INVITED)
+  invitedAt         DateTime          @default(now())
+  joinedAt          DateTime?
+  leftAt            DateTime?
+
+  squad           Squad            @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerProfile ProviderProfile? @relation("ProviderSquadMemberships", fields: [providerProfileId], references: [id])
+
+  @@unique([squadId, userId])
+  @@map("squad_members")
+}
+
+model SquadPortfolioProject {
+  id            String    @id @default(cuid())
+  squadId       String
+  title         String
+  description   String?   @db.Text
+  area          String?
+  budgetRange   String?
+  dateCompleted DateTime?
+  coverImageUrl String?
+  imageUrls     String[]
+  isPublished   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  squad Squad @relation(fields: [squadId], references: [id], onDelete: Cascade)
+
+  @@map("squad_portfolio_projects")
+}
+
+model Job {
+  id                 String    @id @default(cuid())
+  requesterId        String
+  categoryId         String?
+  title              String
+  description        String    @db.Text
+  mode               JobMode   @default(INSTANT)
+  status             JobStatus @default(DRAFT)
+  budgetMin          Decimal?  @db.Decimal(10, 2)
+  budgetMax          Decimal?  @db.Decimal(10, 2)
+  urgency            String?
+  preferredTiming    String?
+  location           String?
+  locationLat        Decimal?  @db.Decimal(10, 8)
+  locationLng        Decimal?  @db.Decimal(11, 8)
+  materialsProvided  Boolean   @default(false)
+  requiredSkills     String[]
+  isRemote           Boolean   @default(false)
+  assignedProviderId String?
+  assignedSquadId    String?
+  publishedAt        DateTime?
+  completedAt        DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  requester   User            @relation("JobRequester", fields: [requesterId], references: [id])
+  category    Category?       @relation(fields: [categoryId], references: [id])
+  attachments JobAttachment[]
+  applications JobApplication[]
+  reviews     Review[]        @relation("JobReview")
+
+  @@map("jobs")
+}
+
+model JobAttachment {
+  id        String   @id @default(cuid())
+  jobId     String
+  url       String
+  filename  String?
+  mediaType String   @default("image")
+  createdAt DateTime @default(now())
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_attachments")
+}
+
+model JobApplication {
+  id                String            @id @default(cuid())
+  jobId             String
+  providerProfileId String?
+  squadId           String?
+  status            ApplicationStatus @default(PENDING)
+  coverLetter       String?           @db.Text
+  proposedBudget    Decimal?          @db.Decimal(10, 2)
+  estimatedDuration String?
+  availableFrom     DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  providerProfile ProviderProfile? @relation(fields: [providerProfileId], references: [id])
+  squad           Squad?           @relation("SquadApplications", fields: [squadId], references: [id])
+  quotes          Quote[]
+
+  @@map("job_applications")
+}
+
+model Quote {
+  id               String    @id @default(cuid())
+  jobApplicationId String
+  amount           Decimal   @db.Decimal(10, 2)
+  description      String?   @db.Text
+  validUntil       DateTime?
+  isAccepted       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  jobApplication JobApplication @relation(fields: [jobApplicationId], references: [id], onDelete: Cascade)
+
+  @@map("quotes")
+}
+
+model Review {
+  id                String   @id @default(cuid())
+  jobId             String?
+  authorId          String
+  subjectUserId     String?
+  providerProfileId String?
+  squadId           String?
+  overallRating     Decimal  @db.Decimal(3, 2)
+  comment           String?  @db.Text
+  isPublished       Boolean  @default(true)
+  isFlagged         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  job             Job?                  @relation("JobReview", fields: [jobId], references: [id])
+  author          User                  @relation("ReviewAuthor", fields: [authorId], references: [id])
+  subjectUser     User?                 @relation("ReviewSubject", fields: [subjectUserId], references: [id])
+  providerProfile ProviderProfile?      @relation("ProviderReview", fields: [providerProfileId], references: [id])
+  squad           Squad?                @relation("SquadReview", fields: [squadId], references: [id])
+  scoreBreakdown  ReviewScoreBreakdown?
+
+  @@map("reviews")
+}
+
+model ReviewScoreBreakdown {
+  id                 String   @id @default(cuid())
+  reviewId           String   @unique
+  quality            Decimal? @db.Decimal(3, 2)
+  professionalism    Decimal? @db.Decimal(3, 2)
+  punctuality        Decimal? @db.Decimal(3, 2)
+  communication      Decimal? @db.Decimal(3, 2)
+  valueForMoney      Decimal? @db.Decimal(3, 2)
+  wouldHireAgain     Boolean?
+  clarityOfBrief     Decimal? @db.Decimal(3, 2)
+  paymentReliability Decimal? @db.Decimal(3, 2)
+  conduct            Decimal? @db.Decimal(3, 2)
+  worksiteReadiness  Decimal? @db.Decimal(3, 2)
+  wouldWorkAgain     Boolean?
+  overallDelivery    Decimal? @db.Decimal(3, 2)
+  coordination       Decimal? @db.Decimal(3, 2)
+  qualityConsistency Decimal? @db.Decimal(3, 2)
+  timeliness         Decimal? @db.Decimal(3, 2)
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@map("review_score_breakdowns")
+}
+
+model VerificationRecord {
+  id                String             @id @default(cuid())
+  providerProfileId String
+  type              String
+  status            VerificationStatus @default(PENDING)
+  documentUrl       String?
+  submittedAt       DateTime           @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+  notes             String?
+
+  providerProfile ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("verification_records")
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  criteria    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+  awardedBy String?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Dispute {
+  id           String        @id @default(cuid())
+  requesterId  String
+  respondentId String
+  jobId        String?
+  subject      String
+  description  String        @db.Text
+  status       DisputeStatus @default(OPEN)
+  resolution   String?       @db.Text
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  resolvedAt   DateTime?
+
+  requester  User @relation("DisputeRequester", fields: [requesterId], references: [id])
+  respondent User @relation("DisputeRespondent", fields: [respondentId], references: [id])
+
+  @@map("disputes")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
