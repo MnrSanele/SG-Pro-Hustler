@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { User, Briefcase, Star, Bell, Settings, Users, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { APP_NAME } from "@/lib/constants";
 import { auth } from "@/lib/auth";
 import { logoutAction } from "@/actions/auth.actions";
+import { getUnreadNotificationCount } from "@/services/notification.service";
 
 const requesterNavItems = [
   { href: "/requester/jobs", label: "My Jobs", icon: Briefcase },
@@ -24,6 +26,7 @@ const providerNavItems = [
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const navItems = session?.user?.role === "REQUESTER" ? requesterNavItems : providerNavItems;
+  const unreadNotifications = session?.user?.id ? await getUnreadNotificationCount(session.user.id) : 0;
 
   return (
     <div className="flex min-h-screen">
@@ -40,6 +43,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             >
               <item.icon className="h-4 w-4" />
               {item.label}
+              {item.href === "/notifications" && unreadNotifications > 0 ? (
+                <Badge variant="secondary" className="ml-auto">
+                  {unreadNotifications}
+                </Badge>
+              ) : null}
             </Link>
           ))}
         </nav>

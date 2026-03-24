@@ -6,3 +6,16 @@ export async function getActiveCategories() {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
+
+export async function getActiveCategoriesWithSkills() {
+  return prisma.category.findMany({
+    where: { isActive: true },
+    include: {
+      skills: {
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      },
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createJobAction } from "@/actions/job.actions";
+import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -213,7 +214,7 @@ export function PostJobForm({ categories }: PostJobFormProps) {
         </label>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <FormMessage message={error} variant="error" /> : null}
 
       <Button disabled={isPending}>
         {isPending ? "Posting job..." : "Post Job"}

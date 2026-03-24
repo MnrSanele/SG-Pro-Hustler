@@ -47,6 +47,7 @@ export async function submitJobApplicationAction(data: JobApplicationInput) {
     revalidatePath(`/jobs/${validated.data.jobId}`);
     revalidatePath("/provider/jobs");
     revalidatePath(`/requester/jobs/${validated.data.jobId}`);
+    revalidatePath("/notifications");
     return { success: true };
   } catch (error) {
     console.error("submitJobApplicationAction error:", error);
@@ -64,6 +65,7 @@ export async function assignProviderAction(jobId: string, applicationId: string)
     revalidatePath(`/requester/jobs/${jobId}`);
     revalidatePath("/provider/jobs");
     revalidatePath(`/jobs/${jobId}`);
+    revalidatePath("/notifications");
     return { success: true };
   } catch (error) {
     console.error("assignProviderAction error:", error);
@@ -93,6 +95,7 @@ export async function startJobAction(jobId: string) {
     await startAssignedJob(session.user.id, session.user.role, jobId);
     revalidatePath("/provider/jobs");
     revalidatePath(`/requester/jobs/${jobId}`);
+    revalidatePath("/notifications");
     return { success: true };
   } catch (error) {
     console.error("startJobAction error:", error);
@@ -127,6 +130,7 @@ export async function confirmJobCompletionAction(jobId: string) {
     revalidatePath("/requester/jobs");
     revalidatePath(`/requester/jobs/${jobId}`);
     revalidatePath("/provider/jobs");
+    revalidatePath("/notifications");
     return { success: true };
   } catch (error) {
     console.error("confirmJobCompletionAction error:", error);

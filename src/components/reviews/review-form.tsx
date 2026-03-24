@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createReviewAction } from "@/actions/review.actions";
+import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,10 @@ interface ReviewFormProps {
 export function ReviewForm({ jobId, type, title, description }: ReviewFormProps) {
   const router = useRouter();
   const [rating, setRating] = useState("5");
+  const [quality, setQuality] = useState("5");
+  const [communication, setCommunication] = useState("5");
+  const [punctuality, setPunctuality] = useState("5");
+  const [professionalism, setProfessionalism] = useState("5");
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -36,6 +41,12 @@ export function ReviewForm({ jobId, type, title, description }: ReviewFormProps)
             type,
             overallRating: Number(rating),
             comment: comment || undefined,
+            scoreBreakdown: {
+              quality: Number(quality),
+              communication: Number(communication),
+              punctuality: Number(punctuality),
+              professionalism: Number(professionalism),
+            },
           });
 
           if (!result.success) {
@@ -69,6 +80,31 @@ export function ReviewForm({ jobId, type, title, description }: ReviewFormProps)
         </select>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        {[
+          { label: "Quality", value: quality, setValue: setQuality },
+          { label: "Communication", value: communication, setValue: setCommunication },
+          { label: "Punctuality", value: punctuality, setValue: setPunctuality },
+          { label: "Professionalism", value: professionalism, setValue: setProfessionalism },
+        ].map((field) => (
+          <div key={field.label} className="space-y-2">
+            <Label htmlFor={`${type}-${jobId}-${field.label}`}>{field.label}</Label>
+            <select
+              id={`${type}-${jobId}-${field.label}`}
+              value={field.value}
+              onChange={(event) => field.setValue(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {[5, 4, 3, 2, 1].map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor={`${type}-${jobId}-comment`}>Comment</Label>
         <Textarea
@@ -79,8 +115,8 @@ export function ReviewForm({ jobId, type, title, description }: ReviewFormProps)
         />
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {success ? <p className="text-sm text-green-600">{success}</p> : null}
+      {error ? <FormMessage message={error} variant="error" /> : null}
+      {success ? <FormMessage message={success} variant="success" /> : null}
 
       <Button disabled={isPending}>
         {isPending ? "Submitting review..." : "Submit Review"}

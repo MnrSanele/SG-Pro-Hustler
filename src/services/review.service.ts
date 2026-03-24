@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ReviewInput } from "@/schemas/review.schema";
+import { createNotification } from "@/services/notification.service";
 
 async function recalculateProviderRating(
   providerProfileId: string,
@@ -80,6 +81,12 @@ export async function createReview(authorId: string, role: string | undefined, d
     }
   }
 
+  const revieweeId = data.type === "REQUESTER_TO_PROVIDER" ? job.assignedProviderId : job.requesterId;
+
+  if (revieweeId === authorId) {
+    throw new Error("You cannot review yourself");
+  }
+
   const existingReview = await prisma.review.findFirst({
     where: {
       jobId: data.jobId,
@@ -99,17 +106,25 @@ export async function createReview(authorId: string, role: string | undefined, d
         jobId: data.jobId,
         authorId,
         type: data.type,
-        subjectUserId: data.type === "REQUESTER_TO_PROVIDER" ? job.assignedProviderId : job.requesterId,
+        subjectUserId: revieweeId,
         providerProfileId: data.type === "REQUESTER_TO_PROVIDER" ? assignedProviderProfile.id : null,
         overallRating: data.overallRating,
         comment: data.comment,
-        ...(data.scoreBreakdown
-          ? {
-              scoreBreakdown: {
-                create: data.scoreBreakdown,
-              },
-            }
-          : {}),
+        scoreBreakdown: {
+          create: {
+            quality: data.scoreBreakdown?.quality ?? data.overallRating,
+            communication: data.scoreBreakdown?.communication ?? data.overallRating,
+            punctuality: data.scoreBreakdown?.punctuality ?? data.overallRating,
+            professionalism: data.scoreBreakdown?.professionalism ?? data.overallRating,
+            valueForMoney: data.scoreBreakdown?.valueForMoney,
+            wouldHireAgain: data.scoreBreakdown?.wouldHireAgain,
+            clarityOfBrief: data.scoreBreakdown?.clarityOfBrief,
+            paymentReliability: data.scoreBreakdown?.paymentReliability,
+            conduct: data.scoreBreakdown?.conduct,
+            worksiteReadiness: data.scoreBreakdown?.worksiteReadiness,
+            wouldWorkAgain: data.scoreBreakdown?.wouldWorkAgain,
+          },
+        },
       },
     });
 
@@ -117,8 +132,62 @@ export async function createReview(authorId: string, role: string | undefined, d
       await recalculateProviderRating(assignedProviderProfile.id, tx);
     }
 
+    await createNotification(
+      revieweeId,
+      "REVIEW_RECEIVED",
+      "New review received",
+      "You received a new review on a completed job.",
+      { jobId: data.jobId, reviewId: createdReview.id, type: data.type },
+      tx,
+    );
+
     return createdReview;
   });
 
   return review;
+}
+
+export async function getReviewsDashboard(userId: string, role: string | undefined) {
+  if (role === "REQUESTER") {
+    return prisma.review.findMany({
+      where: {
+        subjectUserId: userId,
+        type: "PROVIDER_TO_REQUESTER",
+        isPublished: true,
+      },
+      include: {
+        author: { select: { name: true, image: true } },
+        job: { select: { id: true, title: true } },
+        scoreBreakdown: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  if (role === "PROVIDER" || role === "SQUAD_LEADER") {
+    const provider = await prisma.providerProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!provider) {
+      return [];
+    }
+
+    return prisma.review.findMany({
+      where: {
+        providerProfileId: provider.id,
+        type: "REQUESTER_TO_PROVIDER",
+        isPublished: true,
+      },
+      include: {
+        author: { select: { name: true, image: true } },
+        job: { select: { id: true, title: true } },
+        scoreBreakdown: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  return [];
 }

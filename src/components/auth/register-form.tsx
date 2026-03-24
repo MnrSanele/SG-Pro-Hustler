@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { registerAction } from "@/actions/auth.actions";
+import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,7 +84,7 @@ export function RegisterForm({ initialRole = "REQUESTER" }: RegisterFormProps) {
           <option value="PROVIDER">Provider</option>
         </select>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <FormMessage message={error} variant="error" /> : null}
       <Button className="w-full" disabled={isPending}>
         {isPending ? "Creating account..." : "Create Account"}
       </Button>

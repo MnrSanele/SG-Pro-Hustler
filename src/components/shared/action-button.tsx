@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 
 interface ActionResult {
@@ -60,7 +61,7 @@ export function ActionButton({
       >
         {isPending ? pendingLabel ?? "Saving..." : children}
       </Button>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <FormMessage message={error} variant="error" /> : null}
     </div>
   );
 }

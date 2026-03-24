@@ -1,12 +1,59 @@
 import { prisma } from "@/lib/prisma";
 import type { JobApplicationInput } from "@/schemas/application.schema";
 import type { JobInput } from "@/schemas/job.schema";
+import { createNotification } from "@/services/notification.service";
 import type { SearchParams } from "@/types";
+import type { JobStatus, UserRole } from "@prisma/client";
 
 function assertRole(role: string | undefined, allowedRoles: string[], message: string) {
   if (!role || !allowedRoles.includes(role)) {
     throw new Error(message);
   }
+}
+
+const allowedTransitions: Record<JobStatus, Partial<Record<JobStatus, UserRole[]>>> = {
+  DRAFT: {
+    OPEN: ["REQUESTER"],
+    CANCELLED: ["REQUESTER", "ADMIN"],
+  },
+  OPEN: {
+    ASSIGNED: ["REQUESTER"],
+    CANCELLED: ["REQUESTER", "ADMIN"],
+  },
+  IN_REVIEW: {
+    COMPLETED: ["REQUESTER"],
+    DISPUTED: ["REQUESTER", "PROVIDER", "ADMIN"],
+  },
+  ASSIGNED: {
+    IN_PROGRESS: ["PROVIDER", "SQUAD_LEADER"],
+    CANCELLED: ["REQUESTER", "ADMIN"],
+    DISPUTED: ["REQUESTER", "PROVIDER", "ADMIN"],
+  },
+  IN_PROGRESS: {
+    IN_REVIEW: ["PROVIDER", "SQUAD_LEADER"],
+    CANCELLED: ["REQUESTER", "ADMIN"],
+    DISPUTED: ["REQUESTER", "PROVIDER", "ADMIN"],
+  },
+  COMPLETED: {
+    DISPUTED: ["REQUESTER", "PROVIDER", "ADMIN"],
+  },
+  CANCELLED: {},
+  DISPUTED: {},
+  EXPIRED: {},
+};
+
+export function validateJobTransition(
+  currentState: JobStatus,
+  nextState: JobStatus,
+  actorRole: UserRole,
+) {
+  const allowedRoles = allowedTransitions[currentState]?.[nextState] ?? [];
+
+  if (!allowedRoles.includes(actorRole)) {
+    throw new Error(`Invalid transition from ${currentState} to ${nextState} for ${actorRole}`);
+  }
+
+  return true;
 }
 
 async function getProviderProfileForUser(userId: string, tx: typeof prisma = prisma) {
@@ -168,6 +215,7 @@ export async function submitJobApplication(userId: string, role: string | undefi
     where: { id: data.jobId },
     select: {
       id: true,
+      title: true,
       requesterId: true,
       mode: true,
       status: true,
@@ -196,14 +244,27 @@ export async function submitJobApplication(userId: string, role: string | undefi
     throw new Error("You have already applied to this job");
   }
 
-  const application = await prisma.jobApplication.create({
-    data: {
-      jobId: data.jobId,
-      providerProfileId: providerProfile.id,
-      coverLetter: data.message,
-      proposedBudget: data.proposedBudget,
-      status: "PENDING",
-    },
+  const application = await prisma.$transaction(async (tx) => {
+    const createdApplication = await tx.jobApplication.create({
+      data: {
+        jobId: data.jobId,
+        providerProfileId: providerProfile.id,
+        coverLetter: data.message,
+        proposedBudget: data.proposedBudget,
+        status: "PENDING",
+      },
+    });
+
+    await createNotification(
+      job.requesterId,
+      data.proposedBudget ? "QUOTE_SUBMITTED" : "APPLICATION_RECEIVED",
+      data.proposedBudget ? "New quote submitted" : "New application received",
+      `${providerProfile.user.name ?? "A provider"} responded to your job "${job.title}".`,
+      { jobId: job.id, applicationId: createdApplication.id, providerProfileId: providerProfile.id },
+      tx,
+    );
+
+    return createdApplication;
   });
 
   return application;
@@ -326,18 +387,24 @@ export async function assignProviderToJob(
       throw new Error("Only open jobs can be assigned");
     }
 
+    validateJobTransition(job.status, "ASSIGNED", "REQUESTER");
+
     const selectedApplication = job.applications[0];
     if (!selectedApplication?.providerProfile?.user.id) {
       throw new Error("Selected provider could not be found");
     }
 
-    await tx.job.update({
-      where: { id: jobId },
+    const updatedJobs = await tx.job.updateMany({
+      where: { id: jobId, status: "OPEN" },
       data: {
         status: "ASSIGNED",
         assignedProviderId: selectedApplication.providerProfile.user.id,
       },
     });
+
+    if (updatedJobs.count !== 1) {
+      throw new Error("This job has already been updated");
+    }
 
     await tx.jobApplication.updateMany({
       where: {
@@ -355,6 +422,15 @@ export async function assignProviderToJob(
         status: "ACCEPTED",
       },
     });
+
+    await createNotification(
+      selectedApplication.providerProfile.user.id,
+      "JOB_ASSIGNED",
+      "You were assigned a job",
+      "A requester has selected you for a job.",
+      { jobId, applicationId },
+      tx,
+    );
   });
 }
 
@@ -465,14 +541,16 @@ export async function startAssignedJob(userId: string, role: string | undefined,
     throw new Error("You are not assigned to this job");
   }
 
-  if (job.status !== "ASSIGNED") {
-    throw new Error("Only assigned jobs can be started");
-  }
+  validateJobTransition(job.status, "IN_PROGRESS", role as UserRole);
 
-  await prisma.job.update({
-    where: { id: jobId },
+  const updated = await prisma.job.updateMany({
+    where: { id: jobId, assignedProviderId: userId, status: "ASSIGNED" },
     data: { status: "IN_PROGRESS" },
   });
+
+  if (updated.count !== 1) {
+    throw new Error("Only assigned jobs can be started");
+  }
 }
 
 export async function markJobReadyForCompletion(userId: string, role: string | undefined, jobId: string) {
@@ -487,14 +565,16 @@ export async function markJobReadyForCompletion(userId: string, role: string | u
     throw new Error("You are not assigned to this job");
   }
 
-  if (job.status !== "IN_PROGRESS") {
-    throw new Error("Only jobs in progress can be marked ready for completion");
-  }
+  validateJobTransition(job.status, "IN_REVIEW", role as UserRole);
 
-  await prisma.job.update({
-    where: { id: jobId },
+  const updated = await prisma.job.updateMany({
+    where: { id: jobId, assignedProviderId: userId, status: "IN_PROGRESS" },
     data: { status: "IN_REVIEW" },
   });
+
+  if (updated.count !== 1) {
+    throw new Error("Only jobs in progress can be marked ready for completion");
+  }
 }
 
 export async function confirmJobCompletion(requesterId: string, role: string | undefined, jobId: string) {
@@ -506,32 +586,45 @@ export async function confirmJobCompletion(requesterId: string, role: string | u
         id: jobId,
         requesterId,
       },
-      select: { id: true, status: true },
+      select: { id: true, status: true, assignedProviderId: true },
     });
 
     if (!job) {
       throw new Error("Job not found");
     }
 
-    if (job.status !== "IN_REVIEW") {
-      throw new Error("Only jobs awaiting requester review can be completed");
-    }
+      validateJobTransition(job.status, "COMPLETED", "REQUESTER");
 
-    await tx.job.update({
-      where: { id: jobId },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-      },
-    });
+      const updated = await tx.job.updateMany({
+        where: { id: jobId, requesterId, status: "IN_REVIEW" },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+        },
+      });
 
-    await tx.requesterProfile.update({
-      where: { userId: requesterId },
-      data: {
+      if (updated.count !== 1) {
+        throw new Error("Only jobs awaiting requester review can be completed");
+      }
+
+      await tx.requesterProfile.update({
+        where: { userId: requesterId },
+        data: {
         jobsCompleted: {
           increment: 1,
         },
-      },
-    });
+        },
+      });
+
+      if (job.assignedProviderId) {
+        await createNotification(
+          job.assignedProviderId,
+          "JOB_COMPLETED",
+          "Job completed",
+          "A requester confirmed that your job is complete.",
+          { jobId },
+          tx,
+        );
+      }
   });
 }

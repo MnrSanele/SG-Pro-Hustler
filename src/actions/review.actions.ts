@@ -18,6 +18,7 @@ export async function createReviewAction(data: ReviewInput) {
     revalidatePath("/provider/jobs");
     revalidatePath("/requester/jobs");
     revalidatePath(`/requester/jobs/${validated.data.jobId}`);
+    revalidatePath("/notifications");
     return { success: true, reviewId: review.id };
   } catch (error) {
     console.error("createReviewAction error:", error);

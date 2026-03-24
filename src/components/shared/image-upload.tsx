@@ -66,7 +66,7 @@ export function ImageUpload({ value, onChange, onRemove, className }: ImageUploa
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
       />
-      <Image className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+      <Image aria-hidden="true" className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
       <p className="text-sm text-muted-foreground">
         <span className="font-medium text-foreground">Click to upload</span> or drag and drop
       </p>

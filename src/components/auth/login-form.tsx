@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { loginAction } from "@/actions/auth.actions";
+import { FormMessage } from "@/components/shared/form-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,7 +56,7 @@ export function LoginForm() {
           required
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <FormMessage message={error} variant="error" /> : null}
       <Button className="w-full" disabled={isPending}>
         {isPending ? "Signing in..." : "Sign In"}
       </Button>
