@@ -15,9 +15,16 @@ export async function loginAction(email: string, password: string) {
 
     await signIn("credentials", { email, password, redirect: false });
 
+    const redirectTo =
+      user?.role === "ADMIN"
+        ? "/admin"
+        : user?.role === "REQUESTER"
+          ? "/requester/jobs"
+          : "/provider/jobs";
+
     return {
       success: true,
-      redirectTo: user?.role === "REQUESTER" ? "/requester/jobs" : "/provider/jobs",
+      redirectTo,
     };
   } catch {
     return { success: false, error: "Invalid credentials" };

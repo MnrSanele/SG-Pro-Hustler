@@ -593,38 +593,38 @@ export async function confirmJobCompletion(requesterId: string, role: string | u
       throw new Error("Job not found");
     }
 
-      validateJobTransition(job.status, "COMPLETED", "REQUESTER");
+    validateJobTransition(job.status, "COMPLETED", "REQUESTER");
 
-      const updated = await tx.job.updateMany({
-        where: { id: jobId, requesterId, status: "IN_REVIEW" },
-        data: {
-          status: "COMPLETED",
-          completedAt: new Date(),
-        },
-      });
+    const updated = await tx.job.updateMany({
+      where: { id: jobId, requesterId, status: "IN_REVIEW" },
+      data: {
+        status: "COMPLETED",
+        completedAt: new Date(),
+      },
+    });
 
-      if (updated.count !== 1) {
-        throw new Error("Only jobs awaiting requester review can be completed");
-      }
+    if (updated.count !== 1) {
+      throw new Error("Only jobs awaiting requester review can be completed");
+    }
 
-      await tx.requesterProfile.update({
-        where: { userId: requesterId },
-        data: {
+    await tx.requesterProfile.update({
+      where: { userId: requesterId },
+      data: {
         jobsCompleted: {
           increment: 1,
         },
-        },
-      });
+      },
+    });
 
-      if (job.assignedProviderId) {
-        await createNotification(
-          job.assignedProviderId,
-          "JOB_COMPLETED",
-          "Job completed",
-          "A requester confirmed that your job is complete.",
-          { jobId },
-          tx,
-        );
-      }
+    if (job.assignedProviderId) {
+      await createNotification(
+        job.assignedProviderId,
+        "JOB_COMPLETED",
+        "Job completed",
+        "A requester confirmed that your job is complete.",
+        { jobId },
+        tx,
+      );
+    }
   });
 }

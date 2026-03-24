@@ -141,10 +141,14 @@ export default async function ProviderProfilePage({ params, searchParams }: Prop
                       {selectedProject.description ?? "No project description provided."}
                     </p>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {selectedProject.media.map((media) => (
+                      {selectedProject.media.map((media, index) => (
                         <div key={media.id} className="space-y-2">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={media.url} alt={selectedProject.title} className="h-40 w-full rounded object-cover" />
+                          <img
+                            src={media.url}
+                            alt={`${selectedProject.title} image ${index + 1} of ${selectedProject.media.length}`}
+                            className="h-40 w-full rounded object-cover"
+                          />
                           {media.isCover ? <Badge variant="secondary">Cover image</Badge> : null}
                         </div>
                       ))}

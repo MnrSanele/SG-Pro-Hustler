@@ -94,12 +94,14 @@ export default async function ProviderDashboardPage() {
             <CardTitle>Trust signals</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              Moderation: <Badge variant="outline">{provider.moderationStatus}</Badge>
-            </p>
-            <p>
-              Verification: <Badge variant={provider.idVerificationStatus === "VERIFIED" ? "secondary" : "outline"}>{provider.idVerificationStatus}</Badge>
-            </p>
+            <div className="flex items-center gap-2">
+              <span>Moderation:</span>
+              <Badge variant="outline">{provider.moderationStatus}</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>Verification:</span>
+              <Badge variant={provider.idVerificationStatus === "VERIFIED" ? "secondary" : "outline"}>{provider.idVerificationStatus}</Badge>
+            </div>
             <p>{provider.reviewCount} review(s)</p>
             <p>{provider.portfolio.length} portfolio project(s)</p>
             <p>{provider.skills.length} skill(s)</p>

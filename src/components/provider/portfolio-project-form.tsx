@@ -151,7 +151,11 @@ export function PortfolioProjectForm() {
             {images.map((image, index) => (
               <label key={image.key} className="space-y-2 rounded-md border p-2 text-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt={`Portfolio upload ${index + 1}`} className="h-32 w-full rounded object-cover" />
+                          <img
+                            src={image.url}
+                            alt=""
+                            className="h-32 w-full rounded object-cover"
+                          />
                 <span className="flex items-center gap-2">
                   <input
                     type="radio"

@@ -1,5 +1,6 @@
 "use server";
 
+import type { Session } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import {
@@ -8,7 +9,7 @@ import {
 } from "@/services/admin.service";
 import type { ModerationStatus, VerificationStatus } from "@prisma/client";
 
-function ensureAdmin(session: Awaited<ReturnType<typeof auth>>) {
+function ensureAdmin(session: Session | null) {
   if (!session?.user?.id || session.user.role !== "ADMIN") {
     throw new Error("Unauthorized");
   }
