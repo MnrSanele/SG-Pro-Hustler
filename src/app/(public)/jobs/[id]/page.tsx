@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { JobApplicationForm } from "@/components/jobs/job-application-form";
 import { Badge } from "@/components/ui/badge";

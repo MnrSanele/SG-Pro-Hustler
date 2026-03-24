@@ -523,6 +523,7 @@ async function main() {
       await prisma.review.create({
         data: {
           authorId: review.authorId,
+          type: "REQUESTER_TO_PROVIDER",
           subjectUserId,
           providerProfileId,
           overallRating: review.rating,

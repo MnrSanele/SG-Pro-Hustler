@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import type { ReviewInput } from "@/schemas/review.schema";
 
-async function recalculateProviderRating(providerProfileId: string, tx: typeof prisma = prisma) {
+async function recalculateProviderRating(
+  providerProfileId: string,
+  db: Pick<typeof prisma, "review" | "providerProfile"> = prisma,
+) {
   const [aggregate, reviewCount] = await Promise.all([
-    tx.review.aggregate({
+    db.review.aggregate({
       where: {
         providerProfileId,
         type: "REQUESTER_TO_PROVIDER",
@@ -13,7 +16,7 @@ async function recalculateProviderRating(providerProfileId: string, tx: typeof p
         overallRating: true,
       },
     }),
-    tx.review.count({
+    db.review.count({
       where: {
         providerProfileId,
         type: "REQUESTER_TO_PROVIDER",
@@ -22,7 +25,7 @@ async function recalculateProviderRating(providerProfileId: string, tx: typeof p
     }),
   ]);
 
-  await tx.providerProfile.update({
+  await db.providerProfile.update({
     where: { id: providerProfileId },
     data: {
       averageRating: aggregate._avg.overallRating ?? 0,

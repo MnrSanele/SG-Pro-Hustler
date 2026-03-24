@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, User, Briefcase, Star, Bell, Settings, Users, LogOut } from "lucide-react";
+import { User, Briefcase, Star, Bell, Settings, Users, LogOut } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { APP_NAME } from "@/lib/constants";
 import { auth } from "@/lib/auth";

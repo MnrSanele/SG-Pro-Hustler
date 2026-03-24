@@ -23,7 +23,7 @@ export function PostJobForm({ categories }: PostJobFormProps) {
   const [mode, setMode] = useState<"INSTANT" | "QUOTE_BASED">("INSTANT");
   const [budgetMin, setBudgetMin] = useState("");
   const [budgetMax, setBudgetMax] = useState("");
-  const [urgency, setUrgency] = useState("flexible");
+  const [urgency, setUrgency] = useState<"immediate" | "this_week" | "flexible">("flexible");
   const [preferredTiming, setPreferredTiming] = useState("");
   const [location, setLocation] = useState("");
   const [requiredSkills, setRequiredSkills] = useState("");
@@ -154,7 +154,7 @@ export function PostJobForm({ categories }: PostJobFormProps) {
           <select
             id="urgency"
             value={urgency}
-            onChange={(event) => setUrgency(event.target.value)}
+            onChange={(event) => setUrgency(event.target.value as "immediate" | "this_week" | "flexible")}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
             <option value="immediate">Immediate</option>

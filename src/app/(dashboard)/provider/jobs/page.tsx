@@ -77,7 +77,7 @@ export default async function ProviderJobsPage() {
                     </ActionButton>
                   ) : null}
                   <Button asChild variant="outline">
-                    <Link href={`/requester/jobs/${job.id}`}>View requester status</Link>
+                    <Link href={`/jobs/${job.id}`}>Open Job</Link>
                   </Button>
                 </div>
 
