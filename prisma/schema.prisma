@@ -30,9 +30,12 @@ enum JobMode {
 enum JobStatus {
   DRAFT
   OPEN
+  IN_REVIEW
+  ASSIGNED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  DISPUTED
   EXPIRED
 }
 
@@ -87,6 +90,11 @@ enum PricingModel {
   DAILY
   PROJECT_BASED
   NEGOTIABLE
+}
+
+enum ReviewType {
+  REQUESTER_TO_PROVIDER
+  PROVIDER_TO_REQUESTER
 }
 
 model User {
@@ -434,6 +442,8 @@ model JobApplication {
   quotes          Quote[]
 
   @@map("job_applications")
+  @@unique([jobId, providerProfileId])
+  @@unique([jobId, squadId])
 }
 
 model Quote {
@@ -455,6 +465,7 @@ model Review {
   id                String   @id @default(cuid())
   jobId             String?
   authorId          String
+  type              ReviewType
   subjectUserId     String?
   providerProfileId String?
   squadId           String?
@@ -473,6 +484,7 @@ model Review {
   scoreBreakdown  ReviewScoreBreakdown?
 
   @@map("reviews")
+  @@unique([jobId, authorId, type])
 }
 
 model ReviewScoreBreakdown {

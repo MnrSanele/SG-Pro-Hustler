@@ -1,9 +1,10 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createReview } from "@/services/review.service";
 import { ReviewSchema } from "@/schemas/review.schema";
 import type { ReviewInput } from "@/schemas/review.schema";
+import { createReview } from "@/services/review.service";
 
 export async function createReviewAction(data: ReviewInput) {
   const session = await auth();
@@ -13,10 +14,13 @@ export async function createReviewAction(data: ReviewInput) {
   if (!validated.success) return { success: false, error: validated.error.issues[0].message };
 
   try {
-    const review = await createReview(session.user.id, validated.data);
+    const review = await createReview(session.user.id, session.user.role, validated.data);
+    revalidatePath("/provider/jobs");
+    revalidatePath("/requester/jobs");
+    revalidatePath(`/requester/jobs/${validated.data.jobId}`);
     return { success: true, reviewId: review.id };
   } catch (error) {
     console.error("createReviewAction error:", error);
-    return { success: false, error: "Failed to create review" };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create review" };
   }
 }

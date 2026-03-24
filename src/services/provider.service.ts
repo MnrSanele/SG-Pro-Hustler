@@ -27,7 +27,7 @@ export async function getProviders(params: SearchParams = {}) {
 }
 
 export async function getProviderBySlug(slug: string) {
-  return prisma.providerProfile.findUnique({
+  const provider = await prisma.providerProfile.findUnique({
     where: { slug },
     include: {
       user: true,
@@ -42,4 +42,20 @@ export async function getProviderBySlug(slug: string) {
       verificationRecords: true,
     },
   });
+
+  if (!provider) {
+    return null;
+  }
+
+  const completedJobsCount = await prisma.job.count({
+    where: {
+      assignedProviderId: provider.userId,
+      status: "COMPLETED",
+    },
+  });
+
+  return {
+    ...provider,
+    completedJobsCount,
+  };
 }

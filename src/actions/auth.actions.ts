@@ -8,8 +8,17 @@ import { prisma } from "@/lib/prisma";
 
 export async function loginAction(email: string, password: string) {
   try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { role: true },
+    });
+
     await signIn("credentials", { email, password, redirect: false });
-    return { success: true };
+
+    return {
+      success: true,
+      redirectTo: user?.role === "REQUESTER" ? "/requester/jobs" : "/provider/jobs",
+    };
   } catch {
     return { success: false, error: "Invalid credentials" };
   }
@@ -44,7 +53,17 @@ export async function registerAction(data: {
       await prisma.requesterProfile.create({ data: { userId: user.id } });
     }
 
-    return { success: true, userId: user.id };
+    await signIn("credentials", {
+      email: validated.data.email,
+      password: validated.data.password,
+      redirect: false,
+    });
+
+    return {
+      success: true,
+      userId: user.id,
+      redirectTo: validated.data.role === "REQUESTER" ? "/post-job" : "/provider/jobs",
+    };
   } catch (error) {
     console.error("registerAction error:", error);
     return { success: false, error: "Registration failed. Please try again." };

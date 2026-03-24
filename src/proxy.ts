@@ -6,9 +6,7 @@ export default auth((req) => {
   const session = req.auth;
   const isLoggedIn = !!session?.user;
 
-  const isAuthPage =
-    nextUrl.pathname.startsWith("/login") ||
-    nextUrl.pathname.startsWith("/register");
+  const isAuthPage = nextUrl.pathname.startsWith("/login") || nextUrl.pathname.startsWith("/register");
   const isDashboardPage =
     nextUrl.pathname.startsWith("/dashboard") ||
     nextUrl.pathname.startsWith("/provider") ||
