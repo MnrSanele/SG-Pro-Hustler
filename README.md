@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HandyMan Portfolio
 
-## Getting Started
+HandyMan Portfolio is a Next.js 16 marketplace for local service providers, requesters, and admins. It uses Prisma with PostgreSQL and Auth.js for authentication.
 
-First, run the development server:
+## Local development
+
+Install dependencies and start the app:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The production build can be verified with:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build
+```
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project is compatible with Vercel, but it requires environment variables before the deployment will work correctly.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 1. Import the GitHub repository into Vercel
+
+1. Open https://vercel.com/new
+2. Import `MnrSanele/SG-Pro-Hustler`
+3. Keep the default framework preset as **Next.js**
+
+### 2. Configure environment variables
+
+Add the following variables in the Vercel project settings:
+
+| Variable | Required value |
+| --- | --- |
+| `DATABASE_URL` | Your production Postgres connection string |
+| `AUTH_SECRET` | A secure random secret, e.g. `openssl rand -base64 32` |
+| `AUTH_URL` | Your Vercel production URL, e.g. `https://your-project.vercel.app` |
+| `STORAGE_PROVIDER` | `local` |
+| `STORAGE_BUCKET` | `handyman-uploads` |
+| `NEXT_PUBLIC_APP_URL` | Your Vercel production URL |
+| `NEXT_PUBLIC_APP_NAME` | `HandyMan Portfolio` |
+
+You can use `/home/runner/work/SG-Pro-Hustler/SG-Pro-Hustler/.env.example` as the reference for the required variable names.
+
+### 3. Database setup
+
+This app uses Prisma and PostgreSQL. Before using the deployed app:
+
+1. Provision a hosted Postgres database
+2. Set `DATABASE_URL` in Vercel
+3. Run the Prisma schema against that database:
+
+```bash
+npx prisma db push
+```
+
+If you also want sample data:
+
+```bash
+npm run prisma:seed
+```
+
+### 4. Redeploy
+
+After setting the environment variables, trigger a Vercel redeploy from the Vercel dashboard.
+
+## Notes
+
+- The app currently builds successfully with `npm run build`
+- This repository uses Next.js 16 app routing with `src/proxy.ts`
+- For production auth, `AUTH_URL` and `NEXT_PUBLIC_APP_URL` must match your deployed Vercel URL
